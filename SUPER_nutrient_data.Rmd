@@ -1,0 +1,139 @@
+---
+title: "SUPER_nutrient_data"
+author: "Gabriella Vieira"
+date: "2023-11-16"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# SECTION 1: LOADING DATA AND PACKAGES
+
+
+## Packages
+
+```{r}
+install.packages('dataRetrieval')
+```
+
+
+```{r}
+library(tidyverse) #which includes ggplot2
+library(tmap) # interactive and static maps
+library(sf) # to manage spatial data to make maps
+library(tigris) # to import census tract spatial data
+library(flextable)
+library(ggdark)
+library(ggplot2)
+library(viridis)
+library(RColorBrewer)
+library(ggthemes)
+library(terra)
+library(mapproj)
+library(dataRetrieval)
+```
+
+##read data
+
+```{r}
+nutrient_raw <- read.csv("data//resultphyschem.csv")
+
+monthprecip_raw <- read.csv("data//PRISM_precip.csv")
+```
+
+
+#USGS NUTRIENT DATA
+
+##filter for desired stations
+
+```{r}
+nutrient_sites <- nutrient_raw %>% 
+  filter(MonitoringLocationIdentifier %in% c("USGS-09022000", "USGS-09026500", "USGS-06696980"))
+```
+
+##remove rows with no nutrient data
+
+```{r}
+sites_clean <- nutrient_sites[complete.cases(nutrient_sites$ResultMeasureValue), ]
+```
+
+##look at different metrics
+
+```{r}
+unique(nutrient_raw$CharacteristicName)
+
+```
+
+##filter PO4
+
+```{r}
+
+po4 <- sites_clean %>%
+  filter(CharacteristicName == "Orthophosphate")%>%
+  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
+         ActivityEndTime.Time)
+
+```
+
+
+##filter nitrate
+
+```{r}
+no3 <- sites_clean %>%
+  filter(CharacteristicName == "Nitrate")%>%
+  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
+         ActivityEndTime.Time)
+```
+
+
+##filter phosphorus
+
+```{r}
+phos <- sites_clean %>%
+  filter(CharacteristicName == "Phosphorus")%>%
+  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
+         ActivityEndTime.Time)
+```
+
+
+##filter nitrogen
+
+```{r}
+no3 <- sites_clean %>%
+  filter(CharacteristicName == "Nitrogen")%>%
+  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
+         ActivityEndTime.Time)
+```
+
+
+
+#STREAM DISCHARGE DATA
+
+##parameter metadata
+```{r}
+parameterCd <- "00060"
+parameterINFO <- readNWISpCode(parameterCd)
+```
+
+
+##USGS discharge
+```{r}
+# Choptank River near Greensboro, MD:
+siteNumber <- "01491000"
+parameterCd <- "00060" # Discharge
+startDate <- "2008-11-01"
+endDate <- "2023-11-01"
+
+discharge <- readNWISdv(siteNumber, parameterCd, startDate, endDate)
+```
+
+
+
+#PRECIPITATION AND MEAN TEMPERATURE DATA
+
+
+
+
+
