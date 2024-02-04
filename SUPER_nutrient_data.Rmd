@@ -9,17 +9,27 @@ output: word_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# SECTION 1: LOADING DATA AND PACKAGES
+# SECTION 1: DATA CLEANING AND ORGANIZATION 
+
+## Load and read data
 
 
-## Packages
+### Packages
 
 ```{r}
 install.packages('dataRetrieval')
+install.packages("tidyverse")
+install.packages("flextable")
+install.packages("ggdark")
+install.packages("ggtheme")
+install.packages(c("httr", "jsonlite"))
+install.packages("neonUtilities")
 ```
 
 
 ```{r}
+library(tibble)
+library(rlang)
 library(tidyverse) #which includes ggplot2
 library(tmap) # interactive and static maps
 library(sf) # to manage spatial data to make maps
@@ -33,107 +43,186 @@ library(ggthemes)
 library(terra)
 library(mapproj)
 library(dataRetrieval)
+library(httr)
+library(jsonlite)
+library(neonUtilities)
 ```
 
-##read data
+Read data
 
 ```{r}
-nutrient_raw <- read.csv("data//resultphyschem.csv")
-
 monthprecip_raw <- read.csv("data//PRISM_precip.csv")
-```
-
-
-#USGS NUTRIENT DATA
-
-##filter for desired stations
-
-```{r}
-nutrient_sites <- nutrient_raw %>% 
-  filter(MonitoringLocationIdentifier %in% c("USGS-09022000", "USGS-09026500", "USGS-06696980"))
-```
-
-##remove rows with no nutrient data
-
-```{r}
-sites_clean <- nutrient_sites[complete.cases(nutrient_sites$ResultMeasureValue), ]
-```
-
-##look at different metrics
-
-```{r}
-unique(nutrient_raw$CharacteristicName)
-
-```
-
-##filter PO4
-
-```{r}
-
-po4 <- sites_clean %>%
-  filter(CharacteristicName == "Orthophosphate")%>%
-  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
-         ActivityEndTime.Time)
-
-```
-
-
-##filter nitrate
-
-```{r}
-no3 <- sites_clean %>%
-  filter(CharacteristicName == "Nitrate")%>%
-  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
-         ActivityEndTime.Time)
-```
-
-
-##filter phosphorus
-
-```{r}
-phos <- sites_clean %>%
-  filter(CharacteristicName == "Phosphorus")%>%
-  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
-         ActivityEndTime.Time)
-```
-
-
-##filter nitrogen
-
-```{r}
-no3 <- sites_clean %>%
-  filter(CharacteristicName == "Nitrogen")%>%
-  select(CharacteristicName, ResultMeasureValue, ResultMeasure.MeasureUnitCode, MonitoringLocationIdentifier, ActivityStartDate, ActivityEndDate, ActivityStartTime.Time,
-         ActivityEndTime.Time)
+watertemp_clean <- read.csv("data//watertemp_clean.csv")
 ```
 
 
 
 #STREAM DISCHARGE DATA
 
-##parameter metadata
+Parameter metadata
 ```{r}
 parameterCd <- "00060"
 parameterINFO <- readNWISpCode(parameterCd)
 ```
 
-
-##USGS discharge
 ```{r}
-# Choptank River near Greensboro, MD:
-siteNumber <- "01491000"
+dis_attr <- attr(discharge, "variableInfo")
+```
+
+09032990
+, "09026500", "06696980"
+
+#USGS discharge
+```{r}
+siteNumber <- "09022000"
 parameterCd <- "00060" # Discharge
 startDate <- "2008-11-01"
 endDate <- "2023-11-01"
 
-discharge <- readNWISdv(siteNumber, parameterCd, startDate, endDate)
+discharge_usgs <- readNWISdv(siteNumber, parameterCd, startDate, endDate)
 ```
 
+
+#NEON discharge
+```{r}
+discharge <- loadByProduct(dpID = "DP4.00130.001",
+                              site = c("ARIK", "COMO", "WLOU"),
+                              startdate = "2016-01",
+                              enddate = "2023-01",
+                              check.size = F)
+```
+
+
+Tibble the water temperature data
+```{r}
+dischargeNeon <- as_tibble(discharge$csd_continuousDischarge[, c("siteID", "endDate", "equivalentStage", "nonSystematicUnc", "systematicUnc", "stageUnc","maxpostDischarge", "withParaUncQLower2Std", "withParaUncQUpper2Std", "withRemnUncQLower2Std", "withRemnUncQUpper2Std", "dischargeFinalQF", "dischargeFinalQFSciRvw")])
+```
+
+Exporting to CSV file
+```{r}
+write.csv(dischargeNeon, "data//dischargeNeon.csv", row.names = FALSE)
+```
+
+
+Box plot of mean water temp per site per year
+```{r}
+ggplot(watertemp_clean, aes(x = Year, y = surfWaterTempMean)) +
+  geom_boxplot(fill = "blue", alpha = 0.7) +
+  facet_wrap(~siteID, scales = "free_y", ncol = 1) +
+  labs(title = "Boxplots of surfWaterTempMean by Year and siteID",
+       x = "Year",
+       y = "surfWaterTempMean") +
+  theme_minimal()
+```
 
 
 #PRECIPITATION AND MEAN TEMPERATURE DATA
 
 
+graph precipitation data (filtered by date just to see better)
+```{r}
+monthprecip_raw %>% 
+  filter(Date >= "2021-01") %>%
+  ggplot(aes(x = Date, y = ppt..mm.)) +
+  geom_point(color = "black")
+```
 
+
+graph temperature data
+```{r}
+monthprecip_raw %>% 
+  filter(Date >= "2020-01") %>%
+  ggplot(aes(x = Date, y = tmean..degrees.C.)) +
+  geom_point(color = "black")
+```
+
+
+
+Surface water temperature
+```{r}
+Watertemp <- loadByProduct(dpID = "DP1.20053.001",
+                              site = c("ARIK", "COMO", "WLOU"),
+                              startdate = "2016-01",
+                              enddate = "2023-01",
+                              check.size = F)
+```
+
+
+Tibble the water temperature data
+```{r}
+water_temp30 <- as_tibble(Watertemp$TSW_30min[, c("siteID", "startDateTime", "endDateTime", "surfWaterTempMean", "surfWaterTempMinimum", "surfWaterTempMaximum", "surfWaterTempVariance")])
+```
+
+```{r}
+watertemp_clean <- water_temp30[complete.cases(water_temp30$surfWaterTempMean), ]
+
+```
+
+Exporting to CSV file
+```{r}
+write.csv(watertemp_clean, "data//watertemp_clean.csv", row.names = FALSE)
+```
+
+
+
+#NUTRIENT DATA
+
+
+All nutrients
+```{r}
+Waterquality <- loadByProduct(dpID = "DP1.20288.001",
+                              site = c("ARIK", "COMO", "WLOU"),
+                              startdate = "2016-01",
+                              enddate = "2023-01",
+                              check.size = F)
+```
+
+Tibble the water quality data
+```{r}
+water_qual <- as_tibble(Waterquality$waq_instantaneous[, c("siteID", "startDateTime", "endDateTime", "specificConductance","specificCondFinalQF", "dissolvedOxygen", "pH", "chlorophyll", "turbidity", "fDOM")])
+```
+
+```{r}
+waterqual_clean <- water_qual[complete.cases(water_qual$specificConductance), ]
+```
+
+Exporting to CSV file
+```{r}
+write.csv(waterqual_clean, "data//waterqual.csv", row.names = FALSE)
+```
+
+
+```{r}
+write.csv(Waterquality$waq_instantaneous, "data//waterqual_raw.csv", row.names = FALSE)
+```
+
+
+
+
+
+#Nitrate data
+
+```{r}
+nitrate <- loadByProduct(dpID = "DP1.20033.001",
+                              site = c("ARIK", "COMO", "WLOU"),
+                              startdate = "2016-01",
+                              enddate = "2023-01",
+                              check.size = F)
+```
+
+
+Tibble nitrate data
+```{r}
+nitrate_raw <- as_tibble(nitrate$NSW_15_minute[, c("siteID", "startDateTime", "endDateTime", "surfWaterNitrateMean","surfWaterNitrateMinimum", "surfWaterNitrateMaximum", "surfWaterNitrateVariance")])
+```
+
+```{r}
+nitrate_clean <- nitrate_raw[complete.cases(nitrate_raw$surfWaterNitrateMean), ]
+```
+
+Exporting to CSV file
+```{r}
+write.csv(nitrate_clean, "data//nitrate.csv", row.names = FALSE)
+```
 
 
