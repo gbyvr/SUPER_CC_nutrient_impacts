@@ -36,11 +36,11 @@ library(neonUtilities)
 
 
 #Read data
-watertemp_clean <- read.csv("Spring_2024//ESS_221//Research_Project//data//watertemp_clean.csv")
-waterqual_clean <- read.csv("Spring_2024//ESS_221//Research_Project//data//waterqual.csv")
-nitrate <- read.csv("Spring_2024//ESS_221//Research_Project//data//nitrate.csv")
-Discharge <- read.csv("Spring_2024//ESS_221//Research_Project//data//dischargeNeon.csv")
-precip_raw <- read.csv("Spring_2024//ESS_221//Research_Project//data//neonPrecipitation.csv")
+watertemp_clean <- read.csv("/Users/carolinabarbosa/Library/CloudStorage/OneDrive-Colostate/SUPER_2023/Gabriella/Data/watertemp_clean.csv")
+waterqual_clean <- read.csv("/Users/carolinabarbosa/Library/CloudStorage/OneDrive-Colostate/SUPER_2023/Gabriella/Data/waterqual.csv")
+nitrate <- read.csv("/Users/carolinabarbosa/Library/CloudStorage/OneDrive-Colostate/SUPER_2023/Gabriella/Data/nitrate.csv")
+Discharge <- read.csv("/Users/carolinabarbosa/Library/CloudStorage/OneDrive-Colostate/SUPER_2023/Gabriella/Data/dischargeNeon.csv")
+precip_raw <- read.csv("/Users/carolinabarbosa/Library/CloudStorage/OneDrive-Colostate/SUPER_2023/Gabriella/Data/neonPrecipitation.csv")
 
 
 #SECTION 1: CHANGE THE DATA FREQUENCY
@@ -76,13 +76,11 @@ N_monthly <- nitrate %>%
   filter(Year >= 2018) %>% 
   summarise(Mean_Nitrate = mean(surfWaterNitrateMean, na.rm = TRUE))
 
-
-
-
 #SECTION 1.1.D: Full join on nitrate dataframes
 All_nitrate <- full_join(N_daily, N_monthly, by = c("siteID", "Year", "Month")) %>%
-  rename(Avg_daily = Mean_Nitrate.x, Avg_monthly = Mean_Nitrate.y)
-
+  rename(Avg_daily = Mean_Nitrate.x, Avg_monthly = Mean_Nitrate.y)%>%
+  mutate(Date = ymd(paste(Year, Month, Day, sep = "-")))%>%
+select(Date, siteID, Avg_daily, Avg_monthly)
 
 #OUTLIER REMOVAL FOR NITRATE VALUES COMPLETE
 
@@ -134,7 +132,8 @@ WQ_monthly <- waterqual_clean %>%
 
 #SECTION 1.2.D: Full join on water quality dataframes
 All_wq <- full_join(WQ_daily, WQ_monthly, by = c("siteID", "Year", "Month")) %>%
-  rename(Cond_daily = Conductance.x, DO_daily = DO.x, pH_daily = pH.x, Cholophyll_daily = Chrolophyll.x, Turb_daily = Turbidity.x, fDOM_daily = fDOM.x, Cond_monthly = Conductance.y, DO_monthly = DO.y, pH_monthly = pH.y, Chlorophyll_monthly = Chrolophyll.y, Turb_monthly = Turbidity.y, fDOM_monthly = fDOM.y)
+  rename(Cond_daily = Conductance.x, DO_daily = DO.x, pH_daily = pH.x, Cholophyll_daily = Chrolophyll.x, Turb_daily = Turbidity.x, fDOM_daily = fDOM.x, Cond_monthly = Conductance.y, DO_monthly = DO.y, pH_monthly = pH.y, Chlorophyll_monthly = Chrolophyll.y, Turb_monthly = Turbidity.y, fDOM_monthly = fDOM.y)%>%
+  mutate(Date = ymd(paste(Year, Month, Day, sep = "-")))
 
 
 #OUTLIER REMOVAL STILL NEEDED FOR METRICS OTHER THAN PH
@@ -175,8 +174,8 @@ dis_monthly <- Discharge %>%
 
 #SECTION 1.3.D: Full join on discharge dataframes
 All_dis <- full_join(dis_daily, dis_monthly, by = c("siteID", "Year", "Month")) %>%
-  rename(Avg_daily = Mean_discharge.x, Avg_monthly = Mean_discharge.y)
-
+  rename(Avg_daily = Mean_discharge.x, Avg_monthly = Mean_discharge.y)%>%
+  mutate(Date = ymd(paste(Year, Month, Day, sep = "-")))
 
 
 #SECTION 1.4: NEON Precipitation (from 30-minute frequency to daily and monthly averages)
@@ -219,7 +218,8 @@ precip_monthly <- precip_raw %>%
 
 #SECTION 1.4.D: Full join on precipitation dataframes
 All_precip <- full_join(precip_daily, precip_monthly, by = c("siteID", "Year", "Month")) %>%
-  rename(priDailyAvg = priPrecip.x, secDailyAvg = secPrecip.x, priMonthlyAvg = priPrecip.y, secMonthlyAvg = secPrecip.y)
+  rename(priDailyAvg = priPrecip.x, secDailyAvg = secPrecip.x, priMonthlyAvg = priPrecip.y, secMonthlyAvg = secPrecip.y)%>%
+  mutate(Date = ymd(paste(Year, Month, Day, sep = "-")))
 
 
 
@@ -257,14 +257,15 @@ WT_monthly <- watertemp_clean %>%
 
 #SECTION 1.5.D: Full join on water temperature dataframes
 All_wt <- full_join(WT_daily, WT_monthly, by = c("siteID", "Year", "Month")) %>%
-  rename(Temp_daily = Mean_temp.x, Temp_monthly = Mean_temp.y)
-
-
-
-
-
+  rename(Temp_daily = Mean_temp.x, Temp_monthly = Mean_temp.y)%>%
+  mutate(Date = ymd(paste(Year, Month, Day, sep = "-")))
 
 #Master dataframe
-All_nitrate <- full_join(N_daily, N_monthly, by = c("siteID", "Year", "Month"))
-All_nitrate <- rename(All_nitrate, Daily_avg = Mean_Nitrate.x, Monthly_avg = Mean_Nitrate.y)
+#All_nitrate <- full_join(N_daily, N_monthly, by = c("siteID", "Year", "Month"))
+#All_nitrate <- rename(All_nitrate, Daily_avg = Mean_Nitrate.x, Monthly_avg = Mean_Nitrate.y)
+
+##Merging All_wt, all_dis, all_nitrate, all_precip, all_wq
+final_df <-purrr::reduce(list(All_dis, All_nitrate, All_precip, All_wq, All_wt), 
+                      dplyr::left_join, by = c('Date', 'siteID'))
+
 
