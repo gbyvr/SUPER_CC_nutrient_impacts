@@ -1,0 +1,88 @@
+---
+title: "SUPER Data Exploration"
+author: "Billy Johnson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+```{r}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggfortify)
+```
+
+
+# Load in the Data
+```{r}
+# Water Quality Data
+Final_DF <- read_csv("DataWaterQuality/Final_DF.csv")
+
+# MacroInverebrate Data
+Macro_DF <- load("DataMacro/CleanInvert.RData")
+```
+
+# View Water Quality Daily Data
+```{r}
+# Discharge
+Final_DF %>% 
+  ggplot(aes(x = Date, y = disDaily_lps, color = siteID))+
+  geom_line()+
+  facet_wrap(vars(siteID))
+
+# Nitrate
+Final_DF %>% 
+  ggplot(aes(x = Date, y = nitDaily_mcmolpl, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+
+# Precipitation
+Final_DF %>% 
+  ggplot(aes(x = Date, y = precipDaily_mm, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+
+# COND
+Final_DF %>% 
+  ggplot(aes(x = Date, y = Cond_daily, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+
+# DO
+Final_DF %>% 
+  ggplot(aes(x = Date, y = DO_daily, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+
+# pH
+Final_DF %>% 
+  ggplot(aes(x = Date, y = pH_daily, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+
+# Chlorophyll
+Final_DF %>% 
+  ggplot(aes(x = Date, y = Cholophyll_daily, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+
+# Turbidity
+Final_DF %>% 
+  ggplot(aes(x = Date, y = Turb_daily, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+
+# Temperature
+Final_DF %>% 
+  ggplot(aes(x = Date, y = tempDaily_C, color = siteID))+
+  geom_point()+
+  facet_wrap(vars(siteID), dir = "v")
+```
+
+
