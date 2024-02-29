@@ -42,6 +42,8 @@ waterqual_clean <- read.csv("data//waterqual.csv")
 nitrate <- read.csv("data//nitrate.csv")
 Discharge <- read.csv("data//dischargeNeon.csv")
 precip_raw <- read.csv("data//neonPrecipitation.csv")
+cleanInvert <- read.csv("data//CleanInvert.csv")
+final_df <- read.csv("data//Final_df.csv")
 
 
 #SECTION 1: CHANGE THE DATA FREQUENCY
@@ -229,20 +231,16 @@ All_precip <- full_join(precip_daily, precip_monthly, by = c("siteID", "Year", "
 
 
 
-#STILL NEED TO MERGE PRI AND SEC COLUMNS
-
-
-
 
 
 #SECTION 1.5: Water temperature (from 30-minute frequency to daily and monthly averages)
 
-#SECTION 1.2.A: Add date columns
+#SECTION 1.5.A: Add date columns
 watertemp_clean$Year <- substr(watertemp_clean$endDateTime, 1, 4)
 watertemp_clean$Month <- substr(watertemp_clean$endDateTime, 6, 7)
 watertemp_clean$Day <- substr(watertemp_clean$endDateTime, 9, 10)
 
-#SECTION 1.2.B: Remove outliers
+#SECTION 1.5.B: Remove outliers
 Q1 <- quantile(watertemp_clean$surfWaterTempMean, 0.25, na.rm = TRUE)
 Q3 <- quantile(watertemp_clean$surfWaterTempMean, 0.75, na.rm = TRUE)
 IQR <- Q3 - Q1
@@ -252,7 +250,7 @@ upper_fence <- Q3 + 1.5 * IQR
 nooutliers_newDF <- watertemp_clean %>%
   dplyr::filter(pH>= lower_fence & pH <= upper_fence)
 
-#SECTION 1.2.C: Take daily and monthly averages 
+#SECTION 1.5.C: Take daily and monthly averages 
 #Daily water quality averages
 WT_daily <- watertemp_clean %>%
   group_by(siteID, Year, Month, Day) %>%
@@ -275,14 +273,70 @@ All_wt <- full_join(WT_daily, WT_monthly, by = c("siteID", "Year", "Month")) %>%
 
 
 
-#Master dataframe
+#SECTION 1.6: Macroinvertebrate data
+
+
+
+#SECTION 1.6.A: Take daily and monthly averages
+
+# Take daily averages 
+MI_daily <- cleanInvert %>%
+  group_by(siteID.x, collectDate.x, scientificName) %>%
+  summarise(dailyDensity = mean(inv.density, na.rm = TRUE))
+  
+
+# Add date columns
+MI_daily$Year <- substr(MI_daily$collectDate.x, 1, 4)
+MI_daily$Month <- substr(MI_daily$collectDate.x, 6, 7)
+MI_daily$Day <- substr(MI_daily$collectDate.x, 9, 10)
+MI_daily$Date <- substr(MI_daily$collectDate.x, 1, 10)
+
+
+
+# Take monthly averages
+MI_monthly <- MI_daily %>%
+  group_by(siteID.x, scientificName, Year, Month) %>%
+  mutate(monthlyDensity = mean(dailyDensity, na.rm = TRUE))
+
+
+
+
+#SECTION 1.6.B: Full join on macroinverebrate dataframes
+
+# Seclect for desired columns
+All_mcroinv <- MI_monthly %>%
+  select(siteID.x, Date, scientificName, dailyDensity, monthlyDensity) %>%
+  rename(siteID = siteID.x)
+
+
+
+
+
+Final_df <- purrr::reduce(list(final_df, All_mcroinv), 
+                          dplyr::full_join, by = c('Date', 'siteID')) %>% 
+  select(-c("Year"|"Month")) %>% 
+  select(-matches("\\."))
+
+
+
+
+
+#Complete dataframe
 final_df <- purrr::reduce(list(All_dis, All_nitrate, All_precip, All_wq, All_wt), 
                          dplyr::left_join, by = c('Date', 'siteID')) %>% 
   select(-c("Year"|"Month"|"Day")) %>% 
   select(-matches("\\."))
 
 #Rearrange column order
-final_df <- final_df[, c("siteID", "Date", "disDaily_lps", "nitDaily_mcmolpl", "precipDaily_mm", "Cond_daily", "DO_daily", "pH_daily", "Cholophyll_daily", "Turb_daily", "fDOM_daily", "tempDaily_C", "disMonthly_lps", "nitMonthly_mcmolpl", "precipMonthly_mm", "Cond_monthly", "DO_monthly", "pH_monthly", "Chlorophyll_monthly", "Turb_monthly", "fDOM_monthly", "tempMonthly_C")]
+final_df <- final_df[, c("siteID", "Date", "disDaily_lps", "nitDaily_mcmolpl", "precipDaily_mm", 
+                         "Cond_daily", "DO_daily", "pH_daily", "Cholophyll_daily", "Turb_daily", "fDOM_daily", "tempDaily_C", 
+                         "disMonthly_lps", "nitMonthly_mcmolpl", "precipMonthly_mm", 
+                         "Cond_monthly", "DO_monthly", "pH_monthly", "Chlorophyll_monthly", "Turb_monthly", "fDOM_monthly", 
+                         "tempMonthly_C")]
+
+
 
 #Export to CSV
 write.csv(final_df, file = "data//Final_DF.csv", row.names = FALSE)
+
+
