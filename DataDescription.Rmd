@@ -1,0 +1,111 @@
+---
+title: "Data Description"
+author: "Billy Johnson"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load in the packages
+```{r}
+library(neonUtilities)
+library(tidyverse)
+library(dplyr)
+library(kableExtra)
+```
+
+# Load in the Data for Macroinvertebrates
+```{r}
+# Invertebrate Data
+load("~/Desktop/Colorado State University Class Things/SUPER PROJECT/SUPER Project/DataMacro/invert.RData")
+
+# Clean Invertebrate Data
+load("~/Desktop/Colorado State University Class Things/SUPER PROJECT/SUPER Project/DataMacro/CleanInvert.RData")
+```
+
+1. inv_persample: Aquatic macroinvertebrate habitat data and QC metrics per sample
+2. inv_identificationHistory: Aquatic macroinvertebrate identification history for records where identifications
+have changed
+3. inv_fieldData: Aquatic macroinvertebrate field data
+4. inv_pervial: Aquatic macroinvertebrate identified archive data
+5. inv_taxonomyProcessed: Aquatic macroinvertebrate identifications by expert taxonomists - desynonymized
+6. inv_taxonomyRaw: Aquatic macroinvertebrate identifications by expert taxonomists - raw
+7. variables: Description and units for each column of data in data tables
+8. readme: Data product description, issue log, and other metadata about the data product
+9. validation: Description of data validation applied at the points of collection and ingest
+
+
+# Create tibbles from the list for field data and taxonomy data
+```{r}
+invert.tax <-
+  invert[[5]] %>% 
+  as_tibble()
+
+str(invert.tax)
+
+
+invert.field <-
+  invert[[3]] %>% 
+  as_tibble()
+
+str(invert.field)
+```
+
+Macroinvertebrate Data
+```{r}
+invert.all <-
+  inner_join(invert.tax, invert.field, by = "sampleID")
+
+str(invert.all)
+```
+
+```{r}
+NEONFILE.CLEAN2 <- invert.all %>% 
+  select(collectDate.x,sampleID, scientificName, estimatedTotalCount, benthicArea, siteID.x) %>% 
+  separate(collectDate.x, c("collectDate", "time"), sep = " ") %>% 
+  mutate(Sample = substr(sampleID, 1, 11)) %>% 
+  group_by(collectDate, time, scientificName, siteID.x ) %>% 
+  filter(scientificName %in% c("Plecoptera sp.", "Trichoptera sp.", ("Ephemeroptera sp."))) %>% 
+  summarize(inv.density = sum(estimatedTotalCount)/sum(benthicArea)) 
+
+kable(NEONFILE.CLEAN2)
+save(NEONFILE.CLEAN2, file = "dataMacro/CleanInvert.RData")
+
+```
+
+# Show the distribution of species density collected
+```{r}
+NEONFILE.CLEAN2 %>% 
+  ggplot(aes(x = collectDate.x, y = inv.density, color = scientificName))+
+  geom_point()
+```
+
+# Box plot of species 
+```{r}
+NEONFILE.CLEAN2 %>% 
+  ggplot(aes(x = scientificName, y = inv.density, color = scientificName))+
+  geom_boxplot()
+```
+
+
+# Load in the data for the Water Quality
+```{r}
+waterqual <- read_csv("DataWaterQuality/waterqual.csv")
+
+```
+
+# Clean the water quality data
+```{r}
+clean_wq <- waterqual %>% 
+  rename(collectDate.x = startDateTime)
+```
+
+# Combine the macroinvertebrate data and the water quality data
+```{r}
+combined.data <-
+  left_join(NEONFILE.CLEAN2, waterqual, by = )
+```
+
